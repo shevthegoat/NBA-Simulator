@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Draft and Season Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            background-color: #f00;
+            opacity: 1;
+            transform: rotate(0deg);
+            animation: fall 5s linear forwards;
+        }
+        @keyframes fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div id="confetti-container" class="absolute top-0 left-0 w-full h-full pointer-events-none z-50"></div>
+    <div class="container mx-auto p-4">
+        <h1 id="draft-header" class="text-4xl font-bold text-center mb-8 text-orange-500">Draft Point Guard</h1>
+        <div id="draft-section" class="grid grid-cols-1 md:grid-cols-5 gap-8">
+            <div class="md:col-span-3">
+                <h2 class="text-2xl font-semibold mb-4">Player Pool: <span id="player-count">0</span> <span id="position-label">Point Guards</span> Available</h2>
+                <div id="player-pool" class="bg-gray-800 rounded-lg p-4 h-96 overflow-y-auto"></div>
+            </div>
+            <div class="md:col-span-2">
+                <h2 class="text-2xl font-semibold mb-4">Your Team (<span id="team-count">0</span>/5)</h2>
+                <div id="your-team" class="bg-gray-800 rounded-lg p-4 min-h-[24rem]"></div>
+            </div>
+        </div>
+        <div id="controls" class="text-center mt-8">
+            <button id="sim-season-btn" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg text-lg transition duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed" disabled>Simulate Season</button>
+            <button id="sim-playoffs-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg text-lg transition duration-300 ml-4 disabled:bg-gray-600" style="display: none;">Simulate Playoffs</button>
+            <button id="reset-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-lg transition duration-300 ml-4" style="display: none;">Draft Again</button>
+        </div>
+        <div id="results-section" class="text-center mt-8">
+            <h2 class="text-2xl font-semibold mb-4">Results</h2>
+            <div id="results-display" class="bg-gray-800 rounded-lg p-4 min-h-[100px] text-lg">
+                Draft your 5-player team to begin!
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const players = [
+                { name: "Nikola Jokic", rating: 98, position: "C" },
+                { name: "Luka Dončić", rating: 97, position: "PG" },
+                { name: "Giannis Antetokounmpo", rating: 96, position: "PF" },
+                { name: "Shai Gilgeous-Alexander", rating: 95, position: "SG" },
+                { name: "Joel Embiid", rating: 95, position: "C" },
+                { name: "Stephen Curry", rating: 94, position: "PG" },
+                { name: "Kevin Durant", rating: 94, position: "SF" },
+                { name: "Jayson Tatum", rating: 93, position: "SF" },
+                { name: "LeBron James", rating: 93, position: "SF" },
+                { name: "Anthony Davis", rating: 92, position: "PF/C" },
+                { name: "Devin Booker", rating: 92, position: "SG" },
+                { name: "Victor Wembanyama", rating: 91, position: "C" },
+                { name: "Anthony Edwards", rating: 91, position: "SG" },
+                { name: "Damian Lillard", rating: 90, position: "PG" },
+                { name: "Donovan Mitchell", rating: 90, position: "SG" },
+                { name: "Tyrese Haliburton", rating: 89, position: "PG" },
+                { name: "Zion Williamson", rating: 89, position: "PF" },
+                { name: "Jamal Murray", rating: 88, position: "SG" },
+                { name: "De'Aaron Fox", rating: 88, position: "PG" },
+                { name: "Kyrie Irving", rating: 88, position: "PG" },
+                { name: "Jimmy Butler", rating: 88, position: "SF" },
+                { name: "Tyrese Maxey", rating: 87, position: "PG" },
+                { name: "Paul George", rating: 87, position: "SF" },
+                { name: "Kawhi Leonard", rating: 87, position: "SF" },
+                { name: "LaMelo Ball", rating: 87, position: "PG" },
+                { name: "Trae Young", rating: 86, position: "PG" },
+                { name: "Bam Adebayo", rating: 86, position: "C" },
+                { name: "Jaylen Brown", rating: 86, position: "SG/SF" },
+                { name: "Jalen Brunson", rating: 85, position: "PG" },
+                { name: "Domantas Sabonis", rating: 85, position: "PF/C" },
+                { name: "Pascal Siakam", rating: 85, position: "PF" },
+                { name: "Karl-Anthony Towns", rating: 85, position: "C" },
+                { name: "Dejounte Murray", rating: 84, position: "SG" },
+                { name: "Lauri Markkanen", rating: 84, position: "PF" },
+                { name: "Chet Holmgren", rating: 84, position: "C" },
+                { name: "Paolo Banchero", rating: 84, position: "PF" },
+                { name: "Julius Randle", rating: 83, position: "PF" },
+                { name: "Scottie Barnes", rating: 83, position: "SF" },
+                { name: "Franz Wagner", rating: 83, position: "SF" },
+                { name: "Cade Cunningham", rating: 82, position: "PG" },
+                { name: "Jalen Williams", rating: 82, position: "SF" },
+                { name: "Alperen Şengün", rating: 82, position: "C" },
+                { name: "Darius Garland", rating: 81, position: "PG" },
+                { name: "Evan Mobley", rating: 81, position: "PF/C" },
+                { name: "Jrue Holiday", rating: 80, position: "PG" },
+                { name: "Kristaps Porziņģis", rating: 80, position: "PF/C" },
+                { name: "Rudy Gobert", rating: 80, position: "C" },
+                { name: "Mikal Bridges", rating: 79, position: "SF" },
+                { name: "Fred VanVleet", rating: 79, position: "PG" },
+                { name: "OG Anunoby", rating: 78, position: "SF" },
+                { name: "Aaron Gordon", rating: 78, position: "PF" },
+                { name: "Michael Porter Jr.", rating: 78, position: "SF" },
+                { name: "Derrick White", rating: 77, position: "SG" },
+                { name: "Brook Lopez", rating: 77, position: "C" },
+                { name: "Zaccharie Risacher", rating: 77, position: "SF" },
+                { name: "Jarrett Allen", rating: 76, position: "C" },
+                { name: "Myles Turner", rating: 76, position: "C" },
+                { name: "Alex Sarr", rating: 76, position: "C" },
+                { name: "Jaden McDaniels", rating: 75, position: "SF" },
+                { name: "Austin Reaves", rating: 75, position: "SG" },
+                { name: "Reed Sheppard", rating: 75, position: "SG" },
+                { name: "Stephon Castle", rating: 75, position: "PG" },
+                { name: "Donovan Clingan", rating: 74, position: "C" },
+                { name: "Matas Buzelis", rating: 74, position: "SF" },
+                { name: "Chris Paul", rating: 78, position: "PG" },
+                { name: "James Harden", rating: 84, position: "PG" },
+                { name: "Russell Westbrook", rating: 79, position: "PG" },
+                { name: "Klay Thompson", rating: 78, position: "SG" },
+                { name: "Draymond Green", rating: 77, position: "PF" },
+                { name: "Andrew Wiggins", rating: 76, position: "SF" },
+                { name: "Zach LaVine", rating: 83, position: "SG" },
+                { name: "DeMar DeRozan", rating: 82, position: "SG/SF" },
+                { name: "Nikola Vucevic", rating: 80, position: "C" },
+                { name: "Tobias Harris", rating: 77, position: "PF" },
+                { name: "Kyle Kuzma", rating: 80, position: "PF" },
+                { name: "Jordan Poole", rating: 76, position: "SG" },
+                { name: "CJ McCollum", rating: 81, position: "SG" },
+                { name: "Brandon Ingram", rating: 84, position: "SF" },
+                { name: "Herb Jones", rating: 75, position: "SF" },
+                { name: "Jaren Jackson Jr.", rating: 83, position: "PF/C" },
+                { name: "Desmond Bane", rating: 83, position: "SG" },
+                { name: "Marcus Smart", rating: 77, position: "PG" }
+            ];
+            const playerPoolEl = document.getElementById('player-pool');
+            const yourTeamEl = document.getElementById('your-team');
+            const simSeasonBtn = document.getElementById('sim-season-btn');
+            const simPlayoffsBtn = document.getElementById('sim-playoffs-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            const resultsDisplay = document.getElementById('results-display');
+            const confettiContainer = document.getElementById('confetti-container');
+            const teamCountEl = document.getElementById('team-count');
+            const playerCountEl = document.getElementById('player-count');
+            const draftHeaderEl = document.getElementById('draft-header');
+            const positionLabelEl = document.getElementById('position-label');
+            let yourTeam = [];
+            const TEAM_SIZE = 5;
+            const DRAFT_ORDER = [
+                { position: "PG", label: "Point Guards" },
+                { position: "SG", label: "Shooting Guards" },
+                { position: "SF", label: "Small Forwards" },
+                { position: "PF", label: "Power Forwards" },
+                { position: "C", label: "Centers" }
+            ];
+            function createPlayerCard(player, inTeam) {
+                const card = document.createElement('div');
+                card.className = 'bg-gray-700 p-3 rounded-lg flex justify-between items-center mb-2 shadow-md hover:bg-gray-600 transition-colors duration-200';
+                card.innerHTML = `
+                    <div>
+                        <p class="font-semibold text-lg">${player.name}</p>
+                        <p class="text-sm text-gray-400">POS: ${player.position}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-xl text-orange-400">${player.rating}</p>
+                        <button class="draft-btn mt-1 text-sm ${inTeam ? 'bg-red-500 hover:bg-red-600 py-1 px-2' : 'bg-green-500 hover:bg-green-600 py-2 px-4'} text-white rounded transition duration-300">${inTeam ? 'Remove' : 'Draft'}</button>
+                    </div>
+                `;
+                card.querySelector('.draft-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (inTeam) {
+                        removePlayerFromTeam(player);
+                    } else {
+                        draftPlayer(player);
+                    }
+                });
+                return card;
+            }
+            function renderPlayers() {
+                playerPoolEl.innerHTML = '';
+                const currentPosition = DRAFT_ORDER[yourTeam.length]?.position;
+                const currentLabel = DRAFT_ORDER[yourTeam.length]?.label || "Players";
+                const availablePlayers = players
+                    .filter(p => !yourTeam.some(teamPlayer => teamPlayer.name === p.name))
+                    .filter(p => currentPosition ? p.position.split('/').includes(currentPosition) : true)
+                    .sort((a, b) => b.rating - a.rating);
+                availablePlayers.forEach(p => {
+                    playerPoolEl.appendChild(createPlayerCard(p, false));
+                });
+                yourTeamEl.innerHTML = '';
+                yourTeam.sort((a, b) => b.rating - a.rating).forEach(p => {
+                    yourTeamEl.appendChild(createPlayerCard(p, true));
+                });
+                teamCountEl.textContent = `${yourTeam.length}`;
+                playerCountEl.textContent = `${availablePlayers.length}`;
+                positionLabelEl.textContent = currentLabel;
+                simSeasonBtn.disabled = yourTeam.length !== TEAM_SIZE;
+                draftHeaderEl.textContent = yourTeam.length < TEAM_SIZE ? `Draft ${DRAFT_ORDER[yourTeam.length].label.slice(0, -1)}` : 'NBA Draft & Season Simulator';
+            }
+            function draftPlayer(player) {
+                if (yourTeam.length >= TEAM_SIZE) {
+                    resultsDisplay.textContent = "Your team is full! Remove a player to draft another.";
+                    return;
+                }
+                const currentPosition = DRAFT_ORDER[yourTeam.length].position;
+                if (!player.position.split('/').includes(currentPosition)) {
+                    resultsDisplay.textContent = `Please draft a ${DRAFT_ORDER[yourTeam.length].label.slice(0, -1)}.`;
+                    return;
+                }
+                yourTeam.push(player);
+                renderPlayers();
+            }
+            function removePlayerFromTeam(player) {
+                yourTeam = yourTeam.filter(p => p.name !== player.name);
+                renderPlayers();
+            }
+            simSeasonBtn.addEventListener('click', () => {
+                const totalRating = yourTeam.reduce((acc, p) => acc + p.rating, 0);
+                const avgRating = totalRating / TEAM_SIZE;
+                const baseWins = 10;
+                const winsPerRatingPoint = 0.9;
+                let wins = Math.round(baseWins + (avgRating - 80) * winsPerRatingPoint * (TEAM_SIZE / 2));
+                wins += Math.floor(Math.random() * 15) - 7;
+                wins = Math.max(0, Math.min(82, wins));
+                const losses = 82 - wins;
+                resultsDisplay.innerHTML = `
+                    <p class="text-xl font-bold">Regular Season Finished!</p>
+                    <p>Your team's record: <span class="text-green-400">${wins}</span> - <span class="text-red-400">${losses}</span></p>
+                `;
+                if (wins >= 50) {
+                    resultsDisplay.innerHTML += '<p class="text-yellow-400 mt-2">Congratulations, you made the playoffs!</p>';
+                    simPlayoffsBtn.style.display = 'inline-block';
+                } else {
+                    resultsDisplay.innerHTML += '<p class="text-gray-400 mt-2">You missed the playoffs. Better luck next year!</p>';
+                }
+                simSeasonBtn.style.display = 'none';
+                resetBtn.style.display = 'inline-block';
+            });
+            simPlayoffsBtn.addEventListener('click', () => {
+                const totalRating = yourTeam.reduce((acc, p) => acc + p.rating, 0);
+                const avgRating = totalRating / TEAM_SIZE;
+                let championshipChance = ((avgRating - 80) / (98 - 80)) * 50;
+                championshipChance = Math.max(5, Math.min(50, championshipChance));
+                const randomChance = Math.random() * 100;
+                if (randomChance < championshipChance) {
+                    resultsDisplay.innerHTML = `
+                        <p class="text-3xl font-bold text-yellow-300 animate-pulse">🏆 CHAMPIONSHIP WON! 🏆</p>
+                        <p class="mt-2">Your team battled through the playoffs and emerged victorious!</p>
+                    `;
+                    triggerConfetti();
+                } else {
+                    const rounds = ["First Round", "Conference Semifinals", "Conference Finals"];
+                    const exitRound = rounds[Math.floor(Math.random() * rounds.length)];
+                    resultsDisplay.innerHTML = `
+                        <p class="text-xl font-bold text-red-500">Playoffs Result</p>
+                        <p>Your team was eliminated in the ${exitRound}. Tough break!</p>
+                    `;
+                }
+                simPlayoffsBtn.style.display = 'none';
+            });
+            resetBtn.addEventListener('click', () => {
+                yourTeam = [];
+                renderPlayers();
+                resultsDisplay.innerHTML = 'Draft your 5-player team to begin!';
+                simSeasonBtn.style.display = 'inline-block';
+                simPlayoffsBtn.style.display = 'none';
+                resetBtn.style.display = 'none';
+            });
+            function triggerConfetti() {
+                let styleSheet = document.getElementById('confetti-styles');
+                if (styleSheet) {
+                    styleSheet.innerHTML = '';
+                } else {
+                    styleSheet = document.createElement('style');
+                    styleSheet.id = 'confetti-styles';
+                    document.head.appendChild(styleSheet);
+                }
+                for (let i = 0; i < 200; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.classList.add('confetti');
+                    const x = Math.random() * 100;
+                    const rotation = Math.random() * 360;
+                    const animationName = `fall-${i}`;
+                    confetti.style.left = `${x}vw`;
+                    confetti.style.animationName = animationName;
+                    confetti.style.animationDuration = `${4 + Math.random() * 2}s`;
+                    confetti.style.animationDelay = `${Math.random() * 2}s`;
+                    confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                    const keyframes = `
+                    @keyframes ${animationName} {
+                            0% {
+                                transform: translateY(-10vh) translateX(0) rotate(${rotation}deg);
+                                opacity: 1;
+                            }
+                            100% {
+                                transform: translateY(110vh) translateX(${(Math.random() - 0.5) * 30}vw) rotate(${rotation + (Math.random() > 0.5 ? 1 : -1) * 720}deg);
+                                opacity: 0;
+                            }
+                        }
+                    `;
+                    styleSheet.innerHTML += keyframes;
+                    confettiContainer.appendChild(confetti);
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 7000);
+                }
+            }
+            renderPlayers();
+        });
+    </script>
+</body>
+</html>
